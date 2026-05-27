@@ -12,8 +12,6 @@ const DEAD_KEY  = '@finance/outbox/dead';
 const MAX_ATTEMPTS = 8;
 const BACKOFF_CAP_MS = 60_000;
 
-// ---------------- internal state ----------------
-
 let isFlushing = false;
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -35,11 +33,43 @@ async function saveQueue(q: OutboxOp[]): Promise<void> {
   await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(q));
 }
 
-async function appendDeadLetter(op: OutboxOp, lastError: OutboxOp['lastError']): Promise<void> {
+async function loadDead(): Promise<DeadLetter[]> {
   const raw = await AsyncStorage.getItem(DEAD_KEY);
-  const list: DeadLetter[] = raw ? JSON.parse(raw) : [];
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as DeadLetter[];
+  } catch {
+    log.error('dead-letter JSON parse failed, resetting');
+    await AsyncStorage.removeItem(DEAD_KEY);
+    return [];
+  }
+}
+
+async function appendDeadLetter(op: OutboxOp, lastError: OutboxOp['lastError']): Promise<void> {
+  const list = await loadDead();
   list.push({ ...op, lastError, droppedAt: Date.now() });
   await AsyncStorage.setItem(DEAD_KEY, JSON.stringify(list));
+}
+
+// Remove an op from the queue by id without clobbering concurrent enqueues.
+// Always re-load before mutating so we never write a stale snapshot.
+async function removeOpById(opId: string): Promise<void> {
+  const fresh = await loadQueue();
+  const idx = fresh.findIndex((o) => o.id === opId);
+  if (idx >= 0) {
+    fresh.splice(idx, 1);
+    await saveQueue(fresh);
+  }
+}
+
+// Replace an op in the queue by id (used to persist attemptCount/lastError updates).
+async function replaceOpById(updatedOp: OutboxOp): Promise<void> {
+  const fresh = await loadQueue();
+  const idx = fresh.findIndex((o) => o.id === updatedOp.id);
+  if (idx >= 0) {
+    fresh[idx] = updatedOp;
+    await saveQueue(fresh);
+  }
 }
 
 // ---------------- public API ----------------
@@ -63,40 +93,40 @@ export async function enqueue(args: EnqueueArgs): Promise<void> {
   q.push(op);
   await saveQueue(q);
   log.debug('enqueued', op.kind, op.table, op.rowId);
+  // Kick a flush so callers don't have to wait for a network event to trigger drain.
+  // If we're offline or already flushing, flush() returns quickly.
+  void flush();
 }
 
 export async function flush(): Promise<void> {
   if (isFlushing) return;
   isFlushing = true;
   try {
-    let q = await loadQueue();
-    while (q.length > 0) {
+    while (true) {
+      const q = await loadQueue();
+      if (q.length === 0) break;
       const op = q[0];
       const outcome = await tryOp(op);
 
       if (outcome === 'success') {
-        q.shift();
-        await saveQueue(q);
+        await removeOpById(op.id);
         continue;
       }
 
       if (outcome === 'drop') {
-        // Non-retriable failure: archive to dead-letter for diagnostic visibility.
         if (op.lastError) await appendDeadLetter(op, op.lastError);
-        q.shift();
-        await saveQueue(q);
+        await removeOpById(op.id);
         continue;
       }
 
-      // retry: bump attempt count, schedule backoff, stop the flush
+      // retry path
       op.attemptCount += 1;
       if (op.attemptCount >= MAX_ATTEMPTS) {
         await appendDeadLetter(op, op.lastError);
-        q.shift();
-        await saveQueue(q);
+        await removeOpById(op.id);
         continue;
       }
-      await saveQueue(q);
+      await replaceOpById(op);
       scheduleRetry(op.attemptCount);
       break;
     }
@@ -116,13 +146,15 @@ async function tryOp(op: OutboxOp): Promise<Outcome> {
       if (error) return classify(op, error);
       return 'success';
     }
-    // update: optimistic-lock on updated_at
+    // update: optimistic-lock on updated_at via .eq() (the trigger guarantees monotonicity,
+    // so equality with the value the client last saw is sufficient).
+    // .select('id') after .update() returns the affected rows; empty array means the
+    // optimistic lock didn't match — server has a newer row.
     let q = supabase.from(op.table).update(op.payload as never).eq('id', op.rowId);
-    if (op.prevUpdatedAt) q = q.lte('updated_at', op.prevUpdatedAt);
-    const { error, count } = await (q as never as { select: (col: string, opts: { count: 'exact'; head: boolean }) => Promise<{ error: { code?: string; message: string } | null; count: number | null }> }).select('id', { count: 'exact', head: true });
+    if (op.prevUpdatedAt) q = q.eq('updated_at', op.prevUpdatedAt);
+    const { error, data } = await q.select('id');
     if (error) return classify(op, error);
-    if ((count ?? 0) === 0) {
-      // server has a newer row; drop and let Realtime/refetch reconcile.
+    if (!data || data.length === 0) {
       log.info('drop stale update', op.table, op.rowId);
       return 'drop';
     }
@@ -136,7 +168,6 @@ async function tryOp(op: OutboxOp): Promise<Outcome> {
 function classify(op: OutboxOp, error: { code?: string; message: string }): Outcome {
   op.lastError = { code: error.code ?? 'unknown', message: error.message };
   const code = error.code ?? '';
-  // 23xxx = PG integrity error; PGRST/4xx-like = bad request; auth = 401/403.
   if (code.startsWith('23') || code === 'PGRST116' || code === '401' || code === '403') {
     return 'drop';
   }
@@ -169,6 +200,5 @@ export async function getQueueLength(): Promise<number> {
 }
 
 export async function getDeadLetters(): Promise<DeadLetter[]> {
-  const raw = await AsyncStorage.getItem(DEAD_KEY);
-  return raw ? (JSON.parse(raw) as DeadLetter[]) : [];
+  return loadDead();
 }

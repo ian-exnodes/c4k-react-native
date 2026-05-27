@@ -193,7 +193,7 @@ CREATE POLICY transactions_delete ON public.transactions FOR DELETE USING (auth.
 CREATE TABLE public.budgets (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id         uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  category_id     uuid REFERENCES public.categories(id) ON DELETE CASCADE,
+  category_id     uuid REFERENCES public.categories(id) ON DELETE SET NULL,
   amount          bigint NOT NULL,
   period_month    date,
   is_recurring    boolean NOT NULL DEFAULT true,

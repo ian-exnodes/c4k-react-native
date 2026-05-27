@@ -14,7 +14,7 @@ const log = createLogger('network');
 
 type NetworkContextValue = { isOnline: boolean };
 
-export const NetworkContext = createContext<NetworkContextValue>({ isOnline: true });
+export const NetworkContext = createContext<NetworkContextValue | null>(null);
 
 const SYNCED_TABLES: SyncedTable[] = [
   'profiles', 'wallets', 'categories', 'transactions', 'recurring_rules', 'budgets',
