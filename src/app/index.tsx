@@ -1,6 +1,7 @@
-// src/app/index.tsx
 import { Redirect } from 'expo-router';
 
 export default function Index() {
-  return <Redirect href="/" />;
+  // typedRoutes workaround: router.d.ts not yet regenerated for (app) group;
+  // regenerates on next `expo start`. Route is correct at runtime.
+  return <Redirect href={'/(app)' as never} />;
 }
