@@ -30,6 +30,10 @@ export type Tokens = {
     text:      string;
     textMuted: string;
     primary:   string;
+    /** Text color used on primary-color backgrounds (e.g., the Button primary variant). */
+    onPrimary: string;
+    /** Secondary accent — used for info badges, link accents, secondary tabs. */
+    accent:    string;
     success:   string;
     danger:    string;
     warning:   string;

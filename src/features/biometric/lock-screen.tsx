@@ -38,7 +38,7 @@ export function LockScreen() {
             alignItems: 'center', justifyContent: 'center',
           }}
         >
-          <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 28 }}>C</Text>
+          <Text style={{ color: tokens.color.onPrimary, fontWeight: '700', fontSize: 28 }}>C</Text>
         </View>
 
         <View style={{ alignItems: 'center', gap: tokens.space[1] }}>

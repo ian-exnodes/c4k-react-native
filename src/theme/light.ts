@@ -1,18 +1,21 @@
 // src/theme/light.ts
+// Pastel palette (videoinfographica colors #56) with coral pink as the brand.
 import { space, radius, typography, elevation, type Tokens } from './tokens';
 
 export const lightTokens: Tokens = {
   color: {
     bg:        '#FFFFFF',
-    bgSubtle:  '#F6F7FB',
+    bgSubtle:  '#FAF1D6', // cream — selected states, input rests
     surface:   '#FFFFFF',
-    border:    '#E5E7EB',
-    text:      '#0B0B0E',
+    border:    '#FADEE1', // pale pink border — softer than neutral gray, matches palette
+    text:      '#1A1A1A',
     textMuted: '#6B7280',
-    primary:   '#208AEF',
+    primary:   '#FDAFAB', // coral pink — main brand
+    onPrimary: '#1A1A1A', // dark text on pink (white fails contrast on a pastel)
+    accent:    '#B6E3E9', // light teal — secondary accent for info / chips
     success:   '#22C55E',
-    danger:    '#EF4444',
-    warning:   '#F59E0B',
+    danger:    '#E11D48', // deeper rose, distinct from primary pink
+    warning:   '#FAD4AE', // peach — from palette
   },
   space, radius, typography, elevation,
 };

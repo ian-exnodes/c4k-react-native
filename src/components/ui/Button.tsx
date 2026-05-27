@@ -39,7 +39,7 @@ function bgFor(v: Variant, t: ReturnType<typeof useTheme>['tokens'], pressed: bo
 }
 
 function textColorFor(v: Variant, t: ReturnType<typeof useTheme>['tokens']) {
-  if (v === 'primary') return '#FFFFFF';
+  if (v === 'primary') return t.color.onPrimary;
   return t.color.text;
 }
 

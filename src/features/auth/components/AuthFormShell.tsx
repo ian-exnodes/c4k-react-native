@@ -28,7 +28,7 @@ export function AuthFormShell({ title, subtitle, children, footer }: Props) {
             marginBottom: tokens.space[6],
           }}
         >
-          <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 20 }}>C</Text>
+          <Text style={{ color: tokens.color.onPrimary, fontWeight: '700', fontSize: 20 }}>C</Text>
         </View>
         <Text variant="display" style={{ marginBottom: tokens.space[1] }}>{title}</Text>
         {subtitle ? <Text variant="muted" style={{ marginBottom: tokens.space[6] }}>{subtitle}</Text> : null}
