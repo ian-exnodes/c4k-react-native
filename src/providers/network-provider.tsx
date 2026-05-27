@@ -3,6 +3,7 @@ import NetInfo from '@react-native-community/netinfo';
 import { onlineManager } from '@tanstack/react-query';
 import { createContext, useEffect, useState, type ReactNode } from 'react';
 import { useAuth } from '@/hooks/use-auth';
+import { useBiometric } from '@/hooks/use-biometric';
 import { supabase } from '@/services/supabase/client';
 import { queryClient } from '@/services/query/client';
 import { keys } from '@/services/query/keys';
@@ -23,6 +24,7 @@ const SYNCED_TABLES: SyncedTable[] = [
 export function NetworkProvider({ children }: { children: ReactNode }) {
   const [isOnline, setIsOnline] = useState(true);
   const { session } = useAuth();
+  const { isLocked } = useBiometric();
 
   // NetInfo -> isOnline + TanStack onlineManager
   useEffect(() => {
@@ -38,9 +40,12 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
     return unsubscribe;
   }, []);
 
-  // Realtime subscription scoped to the signed-in user
+  // Realtime subscription scoped to the signed-in user.
+  // Gated on !isLocked so we don't open the channel before biometric unlock —
+  // the lock screen renders without the user explicitly "entering" the app.
   useEffect(() => {
     if (!session?.user.id) return;
+    if (isLocked) return;
     const uid = session.user.id;
     const channel = supabase.channel(`user:${uid}`);
 
@@ -66,7 +71,7 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [session?.user.id]);
+  }, [session?.user.id, isLocked]);
 
   return <NetworkContext.Provider value={{ isOnline }}>{children}</NetworkContext.Provider>;
 }

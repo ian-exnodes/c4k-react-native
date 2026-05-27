@@ -1,6 +1,6 @@
 import { Pressable, ScrollView, View } from 'react-native';
 import { useState } from 'react';
-import { router } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { WizardChrome, useWizard, DEFAULT_CATEGORIES } from '@/features/onboarding';
 import { finish } from '@/features/onboarding/finish';
 import { Button } from '@/components/ui/Button';
@@ -16,6 +16,15 @@ export default function CategoriesStep() {
     () => new Set(data.categories ?? DEFAULT_CATEGORIES.map((c) => c.name))
   );
   const [submitting, setSubmitting] = useState(false);
+
+  // If the user landed here via deep link / fast-refresh / hardware back
+  // without completing steps 2 and 3, restart the wizard. Without these
+  // earlier values the finish() inserts would be malformed.
+  if (!data.profile || !data.wallet) {
+    return <Redirect href={'/(onboarding)/welcome' as never} />;
+  }
+  const profileData = data.profile;
+  const walletData = data.wallet;
 
   const toggle = (name: string) => {
     setSelected((prev) => {
@@ -34,8 +43,8 @@ export default function CategoriesStep() {
     try {
       await finish({
         uid: session.user.id,
-        profile: data.profile!,
-        wallet:  data.wallet!,
+        profile: profileData,
+        wallet:  walletData,
         categories: picked,
       });
       router.replace('/(app)' as never);
@@ -51,8 +60,8 @@ export default function CategoriesStep() {
     try {
       await finish({
         uid: session.user.id,
-        profile: data.profile!,
-        wallet:  data.wallet!,
+        profile: profileData,
+        wallet:  walletData,
         categories: [],
       });
       router.replace('/(app)' as never);

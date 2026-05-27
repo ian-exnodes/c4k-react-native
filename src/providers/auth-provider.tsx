@@ -65,7 +65,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
       if (url.includes('/auth/reset-password')) {
-        router.push(`/(auth)/reset-password?url=${encodeURIComponent(url)}` as never);
+        // Route first so the user sees the form, then exchange. The (auth)
+        // gate suppresses its session-based redirect while the reset-password
+        // route is active (see (auth)/_layout.tsx).
+        router.push('/(auth)/reset-password' as never);
+        void supabase.auth.exchangeCodeForSession(url).catch((e) => {
+          log.warn('reset-password exchange failed', e);
+        });
         return;
       }
     };

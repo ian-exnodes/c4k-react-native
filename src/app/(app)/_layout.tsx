@@ -38,10 +38,15 @@ export default function AppLayout() {
     );
   }
 
-  if (!session)                            return <Redirect href={'/(auth)/sign-in' as never} />;
-  if (!session.user.email_confirmed_at)    return <Redirect href={'/(auth)/sign-in' as never} />;
-  if (!profile)                            return <Redirect href={'/(onboarding)/welcome' as never} />;
-  if (isLocked)                            return <LockScreen />;
+  if (!session) return <Redirect href={'/(auth)/sign-in' as never} />;
+  if (!session.user.email_confirmed_at) {
+    // Don't bounce them to sign-in — they'd just sign in again and loop.
+    // Send them where they can act: the verification-email screen.
+    const email = encodeURIComponent(session.user.email ?? '');
+    return <Redirect href={`/(auth)/check-email?email=${email}` as never} />;
+  }
+  if (!profile) return <Redirect href={'/(onboarding)/welcome' as never} />;
+  if (isLocked) return <LockScreen />;
 
   return (
     <Tabs
