@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from 'react';
 import { router } from 'expo-router';
 
 export type WizardData = {
@@ -31,30 +31,33 @@ const ROUTES: Record<WizardStep, string> = {
 export function WizardProvider({ children }: { children: ReactNode }) {
   const [step, setStep] = useState<WizardStep>(1);
   const [data, setData] = useState<WizardData>({});
+  // Track step synchronously so next/back can read the current value without
+  // depending on `step` in their closure. Keeps setState updaters pure
+  // (no router.push side-effect inside the updater) — fixes the
+  // "Cannot update a component during render" warning.
+  const stepRef = useRef<WizardStep>(1);
 
   const setProfile = useCallback((p: WizardData['profile']) => setData((d) => ({ ...d, profile: p })), []);
   const setWallet  = useCallback((w: WizardData['wallet'])  => setData((d) => ({ ...d, wallet: w })),  []);
   const setCategories = useCallback((c: string[]) => setData((d) => ({ ...d, categories: c })), []);
 
   const next = useCallback(() => {
-    setStep((s) => {
-      if (s >= 4) return s;
-      const nextStep = (s + 1) as WizardStep;
-      router.push(ROUTES[nextStep] as never);
-      return nextStep;
-    });
+    if (stepRef.current >= 4) return;
+    const nextStep = (stepRef.current + 1) as WizardStep;
+    stepRef.current = nextStep;
+    setStep(nextStep);
+    router.push(ROUTES[nextStep] as never);
   }, []);
 
   const back = useCallback(() => {
-    setStep((s) => {
-      if (s <= 1) {
-        router.back();
-        return s;
-      }
-      const prevStep = (s - 1) as WizardStep;
+    if (stepRef.current <= 1) {
       router.back();
-      return prevStep;
-    });
+      return;
+    }
+    const prevStep = (stepRef.current - 1) as WizardStep;
+    stepRef.current = prevStep;
+    setStep(prevStep);
+    router.back();
   }, []);
 
   return (

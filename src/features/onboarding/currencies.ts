@@ -10,4 +10,5 @@ export const CURRENCIES: Currency[] = [
   { code: 'INR', label: 'Indian Rupee' },
   { code: 'BRL', label: 'Brazilian Real' },
   { code: 'MXN', label: 'Mexican Peso' },
+  { code: 'VND', label: 'Vietnamese Dong' },
 ];
