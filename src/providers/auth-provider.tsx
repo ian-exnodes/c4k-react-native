@@ -26,8 +26,12 @@ type AuthContextValue = {
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
 
-const REDIRECT_CALLBACK = 'c4kfinance://auth/callback';
-const REDIRECT_RESET    = 'c4kfinance://auth/reset-password';
+// Linking.createURL resolves to the right scheme automatically:
+//   In Expo Go:     exp://<dev-server>:<port>/--/auth/callback
+//   In a dev client: c4kfinance://auth/callback
+// Both are matched by the deep-link handler's substring checks below.
+function callbackUrl() { return Linking.createURL('/auth/callback'); }
+function resetUrl()    { return Linking.createURL('/auth/reset-password'); }
 
 function toResult(error: AuthError | null): MutationResult {
   if (!error) return {};
@@ -92,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: REDIRECT_CALLBACK },
+      options: { emailRedirectTo: callbackUrl() },
     });
     return toResult(error);
   };
@@ -104,7 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const resetPasswordForEmail: AuthContextValue['resetPasswordForEmail'] = async (email) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: REDIRECT_RESET,
+      redirectTo: resetUrl(),
     });
     return toResult(error);
   };
@@ -118,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.resend({
       type: 'signup',
       email,
-      options: { emailRedirectTo: REDIRECT_CALLBACK },
+      options: { emailRedirectTo: callbackUrl() },
     });
     return toResult(error);
   };
