@@ -1,45 +1,46 @@
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { View } from 'react-native';
-import { AuthFormShell, PasswordField, signInSchema, type SignInForm } from '@/features/auth';
+import { AuthFormShell, PasswordField, signUpSchema, type SignUpForm } from '@/features/auth';
 import { TextField } from '@/components/ui/TextField';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { useAuth } from '@/hooks/use-auth';
 import { useTheme } from '@/hooks/use-theme';
 
-export default function SignInScreen() {
-  const { signIn } = useAuth();
+export default function SignUpScreen() {
+  const { signUp } = useAuth();
   const { tokens } = useTheme();
   const {
     control,
     handleSubmit,
     formState: { errors, isSubmitting },
     setError,
-  } = useForm<SignInForm>({
-    resolver: zodResolver(signInSchema),
-    defaultValues: { email: '', password: '' },
+  } = useForm<SignUpForm>({
+    resolver: zodResolver(signUpSchema),
+    defaultValues: { email: '', password: '', confirm: '' },
   });
 
   const onSubmit = handleSubmit(async ({ email, password }) => {
-    const { error } = await signIn(email, password);
+    const { error } = await signUp(email, password);
     if (error) {
       setError('root', { message: error.message });
       return;
     }
+    router.push((`/(auth)/check-email?email=${encodeURIComponent(email)}`) as never);
   });
 
   return (
     <AuthFormShell
-      title="Welcome back"
-      subtitle="Sign in to continue"
+      title="Create account"
+      subtitle="We'll send you a verification email"
       footer={
-        <View style={{ alignItems: 'center', gap: tokens.space[2] }}>
+        <View style={{ alignItems: 'center' }}>
           <Text variant="muted">
-            New here?{' '}
-            <Link href={'/(auth)/sign-up' as never}>
-              <Text style={{ color: tokens.color.primary, fontWeight: '600' }}>Create account</Text>
+            Already have an account?{' '}
+            <Link href={'/(auth)/sign-in' as never}>
+              <Text style={{ color: tokens.color.primary, fontWeight: '600' }}>Sign in</Text>
             </Link>
           </Text>
         </View>
@@ -72,17 +73,29 @@ export default function SignInScreen() {
             onChangeText={onChange}
             onBlur={onBlur}
             error={errors.password?.message}
+            autoComplete="new-password"
+            textContentType="newPassword"
+            returnKeyType="next"
+          />
+        )}
+      />
+      <Controller
+        control={control}
+        name="confirm"
+        render={({ field: { onChange, onBlur, value } }) => (
+          <PasswordField
+            label="Confirm password"
+            value={value}
+            onChangeText={onChange}
+            onBlur={onBlur}
+            error={errors.confirm?.message}
+            autoComplete="new-password"
+            textContentType="newPassword"
             returnKeyType="done"
             onSubmitEditing={onSubmit}
           />
         )}
       />
-
-      <View style={{ alignItems: 'flex-end', marginBottom: tokens.space[4] }}>
-        <Link href={'/(auth)/forgot-password' as never}>
-          <Text variant="muted" style={{ color: tokens.color.primary }}>Forgot password?</Text>
-        </Link>
-      </View>
 
       {errors.root ? (
         <Text variant="muted" style={{ color: tokens.color.danger, marginBottom: tokens.space[3] }}>
@@ -90,7 +103,7 @@ export default function SignInScreen() {
         </Text>
       ) : null}
 
-      <Button label={isSubmitting ? 'Signing in...' : 'Sign in'} onPress={onSubmit} disabled={isSubmitting} />
+      <Button label={isSubmitting ? 'Creating...' : 'Create account'} onPress={onSubmit} disabled={isSubmitting} />
     </AuthFormShell>
   );
 }

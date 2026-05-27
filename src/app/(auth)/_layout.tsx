@@ -5,6 +5,7 @@ import { Text } from '@/components/ui/Text';
 
 export default function AuthLayout() {
   const { session, isLoading } = useAuth();
+
   if (isLoading) {
     return (
       <Screen>
@@ -12,8 +13,10 @@ export default function AuthLayout() {
       </Screen>
     );
   }
-  // typedRoutes workaround: router.d.ts not yet regenerated for (app) group;
-  // regenerates on next `expo start`. Route is correct at runtime.
-  if (session) return <Redirect href={'/(app)' as never} />;
+
+  if (session && session.user.email_confirmed_at) {
+    return <Redirect href={'/(app)' as never} />;
+  }
+
   return <Stack screenOptions={{ headerShown: false }} />;
 }
