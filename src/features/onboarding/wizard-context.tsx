@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from 'react';
-import { router } from 'expo-router';
+import { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from 'react';
+import { router, useSegments } from 'expo-router';
 
 export type WizardData = {
   profile?:    { display_name: string; default_currency: string };
@@ -29,34 +29,31 @@ const ROUTES: Record<WizardStep, string> = {
 };
 
 export function WizardProvider({ children }: { children: ReactNode }) {
-  const [step, setStep] = useState<WizardStep>(1);
   const [data, setData] = useState<WizardData>({});
-  // Track step synchronously so next/back can read the current value without
-  // depending on `step` in their closure. Keeps setState updaters pure
-  // (no router.push side-effect inside the updater) — fixes the
-  // "Cannot update a component during render" warning.
-  const stepRef = useRef<WizardStep>(1);
+
+  // Derive step from the current route so the indicator stays in sync with
+  // hardware-back, swipe-back, and Fast Refresh state resets. Single source
+  // of truth: the navigator's actual location.
+  const segments = useSegments() as string[];
+  const step = useMemo<WizardStep>(() => {
+    const last = segments[segments.length - 1];
+    if (last === 'profile')    return 2;
+    if (last === 'wallet')     return 3;
+    if (last === 'categories') return 4;
+    return 1;
+  }, [segments]);
 
   const setProfile = useCallback((p: WizardData['profile']) => setData((d) => ({ ...d, profile: p })), []);
   const setWallet  = useCallback((w: WizardData['wallet'])  => setData((d) => ({ ...d, wallet: w })),  []);
   const setCategories = useCallback((c: string[]) => setData((d) => ({ ...d, categories: c })), []);
 
   const next = useCallback(() => {
-    if (stepRef.current >= 4) return;
-    const nextStep = (stepRef.current + 1) as WizardStep;
-    stepRef.current = nextStep;
-    setStep(nextStep);
+    if (step >= 4) return;
+    const nextStep = (step + 1) as WizardStep;
     router.push(ROUTES[nextStep] as never);
-  }, []);
+  }, [step]);
 
   const back = useCallback(() => {
-    if (stepRef.current <= 1) {
-      router.back();
-      return;
-    }
-    const prevStep = (stepRef.current - 1) as WizardStep;
-    stepRef.current = prevStep;
-    setStep(prevStep);
     router.back();
   }, []);
 
