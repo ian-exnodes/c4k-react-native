@@ -1,4 +1,3 @@
-// src/providers/app-providers.tsx
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -8,6 +7,7 @@ import { queryPersister } from '@/services/sync/persister';
 import { ThemeProvider } from './theme-provider';
 import { AuthProvider } from './auth-provider';
 import { NetworkProvider } from './network-provider';
+import { BiometricProvider } from '@/features/biometric';
 
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
@@ -19,7 +19,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
         >
           <ThemeProvider>
             <AuthProvider>
-              <NetworkProvider>{children}</NetworkProvider>
+              <BiometricProvider>
+                <NetworkProvider>{children}</NetworkProvider>
+              </BiometricProvider>
             </AuthProvider>
           </ThemeProvider>
         </PersistQueryClientProvider>
